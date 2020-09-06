@@ -23,7 +23,6 @@ columns.type := dec  hex str   dec   dec    hex  time  time  time  str   str   d
 path.sep := :
 
 columns.use := meta mount inode nlinks atime mtime ctime uname gname uid gid path
-columns.use := size mount
 
 ~ := cols
 ifeq ($(MAKECMDGOALS),$~)
@@ -47,20 +46,15 @@ $~: cmd = $(locate) | xargs -r0 $(stat)
 $~: %.db $(self); $(cmd) > $@
 
 assert = assert($1, "$1")
+item = quote $1 quote colon $2
 define awk
 function assert(condition, string)
 {
-  if (! condition) {
+  if (!condition) {
     printf("%s:%d: assertion failed: %s\n", FILENAME, FNR, string) > "/dev/stderr";
     _assert_exit = 1;
     exit 1
   }
-}
-function join(a, s) {
-  print length(a);
-  for (i = 1; i < length(a); ++i) print a[i]
-#r = r s a[i];
-#  return r
 }
 BEGIN {
   RS = "\0";
@@ -71,12 +65,18 @@ BEGIN {
   nuse = split("$(columns.use)", col2use);
   $(call assert,nuse <= ntype);
   quote = "\"";
+  comma = ",";
+  colon = ":";
+  lsb = "[";
+  rsb = "]";
+  lcb = "{";
+  rcb = "}";
 }
 function val(n) { return €n }
 function dec(n) { return val(n) }
 function time(n) { return val(n) }
 function str(n) { return quote val(n) quote }
-function path(  r, s, q, a) {
+function path(  r, s, q, a, n) {
   r = "[^:]*$(path.sep)(.*)";
   s = "\\1";
   q = "\"";
@@ -84,35 +84,42 @@ function path(  r, s, q, a) {
   n = "\n";
   return q gensub(n, a "n", "g", gensub(q, a q, "g", gensub(r, s, 1))) q
 }
+function array(a, s,  r) { for (i = 1; i < a[0] - 1; ++i) r = r a[a[i]] s; return lsb r a[a[i]] rsb }
+function object(a, s,  r) {
+  for (i = 1; i < a[0] - 1; ++i) r = r $(call item, a[i], a[a[i]]) s;
+  return lcb r $(call item, a[i], a[a[i]]) rcb
+}
 {
   for (i in col2use) {
     name = col2use[i];
     col = name2col[name];
     type = col2type[col];
-#    print name, col, type;
+    json[i] = name;
     json[name] = @type(col);
-#    print json[name];
   }
-  join(json, ",")
-#  for (i in json) print json[i]
-}
-0 {
-  l = "[";
-  c = ",";
-  r = "]";
-  print l val("uname") c val("gname") c val("size") c path() r
+  json[0] = ++i;
+  print $1(json, comma)
 }
 END {
   if (_assert_exit) exit 1
 }
 endef
 
-~ := %.awk
-#$~: %.stat $(self); < $< awk '$(strip $(call €, $(awk)))' > $@
-$~: %.stat $(self); < $< awk '$(call €, $(awk))'
+
+ifdef OBJECT
+json := object
+else
+json := array
+endif
+
+~ := %.json
+$~: cmd = awk '$(strip $(call €, $(call awk, $(json))))'
+$~: %.stat $(self); < $< $(cmd) > $@
+ifdef TEST
+$~: %.stat $(self); @< $< head -zn 2 | $(cmd)
+endif
 
 stat: tmp/tst.stat
-awk: tmp/tst.awk
+json: tmp/tst.json
 
-main: awk
-
+main: json
