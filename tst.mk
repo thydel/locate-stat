@@ -7,8 +7,7 @@ SHELL != which bash
 .ONESHELL:
 .DELETE_ON_ERROR:
 .PHONY: phony
-_WS :=
-_WS +=
+_WS := $(or) $(or)
 _comma := ,
 .RECIPEPREFIX := $(_WS)
 .DEFAULT_GOAL := main
@@ -65,6 +64,8 @@ $(tstd)/.stone:; touch $@
 
 $(tmp)/tst.db: | $(tstd); updatedb -o $@ -U $| -l 1
 db: $(tmp)/tst.db
+
+main: phony db
 
 define first
 sudo adduser $$USER mlocate
