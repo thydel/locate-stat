@@ -17,6 +17,6 @@ $(self):;
 
 main: phony $(self) stat2json.json
 stat2json.json: stat2json.awk $(self); awk --non-decimal-data -f $< -- $(STYLE) tmp/tst.stat > $@
-stat2json.awk: stat2json.awk.m4; install -m 0444 <(m4 -P $<) $@
+stat2json.awk: stat2json.m4.awk; install -m 0444 <(m4 -P $<) $@
 
 STYLE := -o
