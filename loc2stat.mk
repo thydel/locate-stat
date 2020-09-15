@@ -7,8 +7,7 @@ SHELL != which bash
 .ONESHELL:
 .DELETE_ON_ERROR:
 .PHONY: phony
-_WS :=
-_WS +=
+_WS := $(or) $(or)
 _comma := ,
 .RECIPEPREFIX := $(_WS)
 .DEFAULT_GOAL := main
@@ -123,3 +122,7 @@ stat: tmp/tst.stat
 json: tmp/tst.json
 
 main: json
+
+# Local Variables:
+# indent-tabs-mode: nil
+# End:
