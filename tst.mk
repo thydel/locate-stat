@@ -35,6 +35,15 @@ $~: n := 4
 $~: | $(dirs); seq $$(($$RANDOM % $n)) | xargs -i date > $@
 $.: phony $~
 
+u+s := 1
+g+s := 2
++t := 3
+$(foreach _,u+s g+s +t,\
+	$(eval $(word $($_), $(~)).$_: $(word $($_), $(~)); \
+		cp $$< $$@; chmod $_ $$@)\
+	$(eval bits += $(word $($_), $(~)).$_))
+bits: phony $(bits)
+
 . := fifos
 ~ := $($.)
 $~: | $(fifod); mkfifo $@
@@ -58,7 +67,7 @@ $(~d):; mkdir $@
 $.: phony $~
 
 $(tstd):; mkdir -p $@
-$(tstd)/.stone: $(files) $(fifos) $(weirds)
+$(tstd)/.stone: $(files) $(fifos) $(weirds) $(bits)
 tstd: phony $(tstd)/.stone
 $(tstd)/.stone:; touch $@
 
