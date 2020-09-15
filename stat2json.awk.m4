@@ -1,79 +1,34 @@
-#!/bin/sh
-#exec awk "$(m4 "$0")" "$@"
-#!/usr/bin/awk -f
-
-m4_define(`columns_name',
-          `"meta dev mount inode nlinks mode atime mtime ctime uname gname uid gid size path"')m4_dnl
-m4_define(`columns_type',
-          `"dec  dev str   dec   dec    mode time  time  time  user  group dec dec dec  path"')m4_dnl
-m4_dnl
-m4_define(`columns_use', `"meta dev mount inode nlinks mode atime mtime ctime uname gname uid gid path"')m4_dnl
-
 @include "assert"
 @include "getopt"
 @include "join"
 
 m4_define(`assert', ``assert'($1, "$1")')m4_dnl
 
-function usage(n) {
-    print n " [-o] [-s c]" > "/dev/stderr"
-    exit 1
+func init_columns() {
+    columns_name = "meta dev mount inode nlinks mode atime mtime ctime uname gname uid gid size path"
+    columns_type = "dec  dev str   dec   dec    mode time  time  time  str   str   dec dec dec  path"
+    columns_use = "meta dev mount inode nlinks mode times user group size path"
 }
 
-function parse_args() {
-    while ((c = getopt(ARGC, ARGV, "os:")) != -1) {
-        if (c == "o")
-            style = "json_object"
-        else if (c == "s")
-            path_sep = Optarg
-        else
-            usage(ARGV[0])
-    }
-    for (i = 1; i < Optind; i++)
-        ARGV[i] = ""
-}    
+func init_merged_columns() {
+    split("times user group", merged_name)
 
-function splitted(s, a,  i, n) {
-    n = split(s, a)
-    for (i = 1; i <= n; ++i) {
-        a[a[i]] = i
-    }
+    cols["times"] = "atime mtime ctime"
+    merged["times"] = cols["times"]
+
+    cols["user"] = "uname uid"
+    merged["user"] = "name uid"
+
+    cols["group"] = "gname gid"
+    merged["group"] = "name gid"
 }
 
-function split_item(a, i) {
-    return a[a[i]]
-}
-
-function map_splitted(f, a, b) {
-    for (i = 1; i <= length(a) / 2; ++i) {
-        b[i] = @f(a, i)
-    }
-}
-
-function joined(a, s) {
-    return join(a, 1, length(a), s)
-}
-
-function json_array(a,  t) {
-    map_splitted("split_item", a, t)
-    return lsb joined(t, comma) rsb
-}
-
-function json_item(a, i) {
-    return quote a[i] quote colon a[a[i]]
-}
-
-function json_object(a,  t) {
-    map_splitted("json_item", a, t)
-    return lcb joined(t, comma) rcb
-}
-
-function init_args() {
+func init_args() {
     style = "json_array"
     path_sep = ":"
 }
 
-function init_vars() {
+func init_vars() {
     quote = "\""
     comma = ","
     colon = ":"
@@ -83,29 +38,92 @@ function init_vars() {
     rcb = "}"
 }
 
-function init_arrays() {
-    nname = split(columns_name(), col2name);
-    ntype = split(columns_type(), col2type);
+func init_arrays( nname, ntype, nuse, i) {
+    nname = split(columns_name, col2name)
+    ntype = split(columns_type, col2type)
     assert(nname == ntype);
-    for (i = 1; i <= nname; ++i) name2col[col2name[i]] = i;
-    nuse = split(columns_use(), col2use);
-    assert(nuse <= ntype);
+    for (i = 1; i <= nname; ++i) name2col[col2name[i]] = i
 }
+
+func init_use() { split(columns_use, col2use) }
 
 BEGIN {
     RS = "\0"
+    init_columns()
+    init_merged_columns()
     init_vars()
     init_args()
-    parse_args()
     init_arrays()
+    parse_args()
+    init_use()
 }
 
-function val(n) { return $n }
-function dec(n) { return val(n) }
-function time(n) { return val(n) }
-function str(n) { return quote val(n) quote }
+func usage(n) { print n " [-o] [-s c] [-u cols]" > "/dev/stderr"; exit 1 }
 
-function dev(n,  t) {
+func parse_args( c, i) {
+    while ((c = getopt(ARGC, ARGV, "os:u:")) != -1) {
+        if (c == "o")
+            style = "json_object"
+        else if (c == "s")
+            path_sep = Optarg
+        else if (c == "u")
+            set_columns_use(Optarg)
+        else
+            usage(ARGV[0])
+    }
+    for (i = 1; i < Optind; i++)
+        ARGV[i] = ""
+}
+
+func set_columns_use(s,  t, u, v, i) {
+    split(s, t, "[ ,]")
+    for (i in col2name) u[col2name[i]] = i
+    for (i in merged_name) v[merged_name[i]] = i
+    for (i in t)
+        if (!(t[i] in u) && !(t[i] in v)) {
+            print t[i] " neither in " joined(col2name, comma) " nor in " joined(merged_name, comma) > "/dev/stderr"
+            exit 1
+        } else columns_use = joined(t, " ")
+}
+
+func splitted(s, a,  i, n) {
+    n = split(s, a)
+    for (i = 1; i <= n; ++i) a[a[i]] = i
+    return n
+}
+
+func split_item(a, i) { return a[a[i]] }
+
+func map_splitted(f, a, b) { for (i = 1; i <= length(a) / 2; ++i) b[i] = @f(a, i) }
+
+func joined(a, s) { return join(a, 1, length(a), s) }
+
+func json_array(a,  t) {
+    map_splitted("split_item", a, t)
+    return lsb joined(t, comma) rsb
+}
+
+func json_item(a, i) { return quote a[i] quote colon a[a[i]] }
+
+func json_object(a,  t) {
+    map_splitted("json_item", a, t)
+    return lcb joined(t, comma) rcb
+}
+
+func val(n) { return $n }
+func dec(n) { return val(n) }
+func str(n) { return quote val(n) quote }
+
+func time(n,  m, t, u, i) {
+    n = val(n)
+    m = splitted("timestamp second minute hour day month fullyear weekday", t)
+    splitted("              %S     %M     %H   %d  %m    %Y       %w", u)
+    t[t[1]] = n
+    for (i = 1; i < m; ++i) t[t[i + 1]] = strftime(u[i], n) + 0
+    return @style(t)
+}
+
+func dev(n,  t) {
     n = val(n)
     splitted("major minor", t)
     t[t[1]] = rshift(n, 8)
@@ -113,11 +131,9 @@ function dev(n,  t) {
     return @style(t)
 }
 
-function bit(n, b) {
-    return !!and(n + 0, lshift(1, b))
-}
+func bit(n, b) { return !!and(n + 0, lshift(1, b)) }
 
-function mode(n,  t, i, j) {
+func mode(n,  t, i, j) {
     n = val(n)
     splitted("type suid sgid sticky mode", t)
     i = 1
@@ -129,22 +145,19 @@ function mode(n,  t, i, j) {
     return @style(t)
 }
 
-function user_or_group(n, s,  t) {
-    splitted(s, t)
-    t[t[1]] = val(n)
-    t[t[2]] = val(n + 2)
+func merge(n,  t, u, i, j) {
+    split(merged[n], t)
+    split(cols[n], u)
+    for (i in u) {
+        name = u[i]
+        col = name2col[name]
+        type = col2type[col]
+        t[t[i]] = @type(col)
+    }
     return @style(t)
 }
 
-function user(n) {
-    return user_or_group(n, "name uid")
-}
-
-function group(n) {
-    return user_or_group(n, "group gid")
-}
-
-function path(  r, s, q, a, n) {
+func path(  r, s, q, a, n) {
     r = "[^:]*" path_sep "(.*)";
     s = "\\1";
     q = "\"";
@@ -153,21 +166,23 @@ function path(  r, s, q, a, n) {
     return q gensub(n, a "n", "g", gensub(q, a q, "g", gensub(r, s, 1))) q
 }
 
-function main() {
+func main(  i, name, col, type, json) {
     for (i in col2use) {
 	name = col2use[i]
-	col = name2col[name]
-	type = col2type[col]
-	json[i] = name
-	json[name] = @type(col)
+        if (name in name2col) {
+            col = name2col[name]
+            type = col2type[col]
+            json[i] = name
+            json[name] = @type(col)
+        } else {
+            json[i] = name
+            json[name] = merge(name)
+        }
     }
-    json[0] = i + 1
     print @style(json)
 }
 
-{
-    main()
-}
+{ main() }
 
 # Local Variables:
 # indent-tabs-mode: nil
