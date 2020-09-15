@@ -169,13 +169,12 @@ func path(  r, s, q, a, n) {
 func main(  i, name, col, type, json) {
     for (i in col2use) {
 	name = col2use[i]
+        json[i] = name
         if (name in name2col) {
             col = name2col[name]
             type = col2type[col]
-            json[i] = name
             json[name] = @type(col)
         } else {
-            json[i] = name
             json[name] = merge(name)
         }
     }
