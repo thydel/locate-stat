@@ -1,2 +1,4 @@
 *~
 tmp/
+stat2json.awk
+stat2json.json
