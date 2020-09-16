@@ -157,13 +157,30 @@ func merge(n,  t, u, i, j) {
     return @style(t)
 }
 
+# https://www.ietf.org/rfc/rfc4627.txt
+# « All Unicode characters may be placed within the
+#   quotation marks except for the characters that must be escaped:
+#   quotation mark, reverse solidus, and the control characters (U+0000
+#   through U+001F) »
+BEGIN { init_quote_json_cntrl() }
+func init_quote_json_cntrl( i) { for (i = 0; i < 256; ++i) ord[sprintf("%c", i)] = i }
+func quote_json_cntrl(s,  t, i, a) {
+    # [:cntrl:] also contain U+007F
+    # So we may apply unneeded idempotent transformation
+    if (match(s, "[[:cntrl:]]")) {
+	split(s, a, "")
+	for (i in a) t = t "" (ord[a[i]] < 32 ? sprintf("\\u%04X", ord[a[i]]) : a[i])
+	return t
+    }
+    return s
+}
+
 func path(  r, s, q, a, n) {
     r = "[^:]*" path_sep "(.*)";
     s = "\\1";
     q = "\"";
     a = "\\\\";
-    n = "\n";
-    return q gensub(n, a "n", "g", gensub(q, a q, "g", gensub(r, s, 1))) q
+    return q quote_json_cntrl(gensub(q, a q, "g", gensub(r, s, 1))) q
 }
 
 func main(  i, name, col, type, json) {
