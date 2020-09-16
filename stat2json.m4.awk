@@ -180,7 +180,8 @@ func path(  r, s, q, a, n) {
     s = "\\1";
     q = "\"";
     a = "\\\\";
-    return q quote_json_cntrl(gensub(q, a q, "g", gensub(r, s, 1))) q
+    # Must replace \ before "
+    return q quote_json_cntrl(gensub(q, a q, "g", gensub(a, a a, "g", gensub(r, s, 1)))) q
 }
 
 func main(  i, name, col, type, json) {
