@@ -54,13 +54,13 @@ $~: head = 0 1 $(fmt)
 $~: names = 0 2 $(columns.name)
 $~: types = 0 3 $(columns.type)
 $~: headers = head names types
-$~: header = $(foreach _,$(headers),echo '$($_)'; )
+$~: header = (($(foreach _,$(headers),echo '$($_)';)) | tr '\n' '\0')
 $~: printf = 1 $(fmt)
 $~: stat = stat --printf='$(printf)'
 $~: stats = $(nice) $(ionice) $(sudo) xargs -r0 $(stat)
 $~: compress := gzip --rsyncable
 $~: write = $(sudo) dd of=$(out)
-$~: cmd = ($(header) ($(locate) | $(stats))) | $(compress) | $(write)
+$~: cmd = ($(header); ($(locate) | $(stats))) | $(compress) | $(write)
 $~: %.db $(self); $(strip $(cmd))
 
 main: phony /var/lib/mlocate/mlocate.stat.gz
