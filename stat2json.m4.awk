@@ -181,7 +181,10 @@ func main(  i, name, col, type, json) {
     print @style(json)
 }
 
-{ main() }
+$1 { main() }
+!$1 && style == "json_array" { print lsb 0 comma quote $0 quote rsb }
+!$1 && style == "json_object" {
+    print lcb quote "meta" quote colon 0 comma quote "line" quote colon quote $0 quote rcb }
 
 # Local Variables:
 # indent-tabs-mode: nil
