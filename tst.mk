@@ -55,6 +55,8 @@ define $.
 .stone
 name with space
 name with "quote"
+name with reverse \\\\ solidus
+name with many \\001 \\t \\r \\f [:cntrl:]
 name with LF\\nsecond line
 endef
 ~d := $(tstd)/$.
