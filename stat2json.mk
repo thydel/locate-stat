@@ -15,8 +15,26 @@ _comma := ,
 self := $(lastword $(MAKEFILE_LIST))
 $(self):;
 
-main: phony $(self) stat2json.json
-stat2json.json: stat2json.awk $(self); awk --non-decimal-data -f $< -- $(STYLE) tmp/tst.stat > $@
+ifdef NEVER
+tst: phony $(self) stat2json.json
+stat2json.json: stat2json.awk $(self); awk -nf $< -- $(STYLE) tmp/tst.stat > $@
 stat2json.awk: stat2json.m4.awk; install -m 0444 <(m4 -P $<) $@
+endif
 
-STYLE := -o
+~ := %.json.gz
+$~: unzip = zcat $<
+$~: awk = awk -nf <(m4 -P stat2json.m4.awk) -- $(STYLE)
+$~: rezip = gzip --rsyncable
+$~: write = dd of=$@ 2> /dev/null
+$~: cmd = $(unzip) | $(awk) | $(rezip) | $(write)
+%.json.gz: %.stat.gz $(self); $(cmd)
+
+main: phony /var/lib/mlocate/mlocate.json.gz
+tst: phony tmp/tst.json.gz
+
+opts := obj
+
+STYLE :=
+obj  := STYLE := -o
+
+$(opts):; @: $(eval $($@))
