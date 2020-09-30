@@ -30,6 +30,6 @@ files.json: find.json; < $< jq -sc '$(jq)' > $@
 
 find.json: find.txt; < $< jq -Rc 'split("/")' > $@
 
-find := /usr/local
 find := ~/usr
+find := /usr/local/etc
 find.txt: Makefile; find $(find) > $@
