@@ -23,13 +23,14 @@ input := tmp/paths-cons-find.paths
 $(input): $(self); find $(find) | sort > $@
 
 deps := %.jq $(lib) $(self)
-filter = < $< $($@) > $@
+stdcmd = < $< $(or $1,$($@)) > $@
 
 - := paths-to-cons
-~ := tmp/$-.json
+- += $--2
+~ := $(-:%=tmp/%.json)
 $~: jq = split("/")
-$~: $~ = jq -R '$(jq)' | ./$*.jq
-$~: tmp/%.json : $(input) $(deps); $(filter)
+$~: cmd = jq -R '$(jq)' | ./$*.jq
+$~: tmp/%.json : $(input) $(deps); $(call stdcmd,$(cmd))
 
 - := cons-to-paths
 ~ := tmp/$-.paths
@@ -37,7 +38,7 @@ $~: jq = join("/")
 $~: $~ = $*.jq | jq -r '$(jq)'
 $~: tmp/%.paths : tmp/paths-to-cons.json $(deps); $(filter)
 
-to-cons: phony tmp/paths-to-cons.json
+to-cons: phony tmp/paths-to-cons.json tmp/paths-to-cons-2.json
 to-paths: phony tmp/cons-to-paths.paths
 diff: phony to-paths; diff $(input) tmp/cons-to-paths.paths
 
